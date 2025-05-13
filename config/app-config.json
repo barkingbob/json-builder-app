@@ -1,0 +1,20 @@
+{
+    "environments": [
+      { "name": "SIT-A", "port": 9027, "target_eui64_cv8": "AA-AA-AA-AA-AA-AA-SIT-A" },
+      { "name": "SIT-B", "port": 9028, "target_eui64_cv8": "BB-BB-BB-BB-BB-BB-SIT-B" },
+      { "name": "UIT-A", "port": 8028, "target_eui64_cv8": "CC-CC-CC-CC-CC-CC-UIT-A" },
+      { "name": "UIT-B", "port": 8027, "target_eui64_cv8": "DD-DD-DD-DD-DD-DD-UIT-B" }
+    ],
+    "roles": [
+      { "fullName": "Import Supplier 1", "abbreviation": "IS1" },
+      { "fullName": "Import Supplier 2", "abbreviation": "IS2" },
+      { "fullName": "Export Supplier", "abbreviation": "ES" },
+      { "fullName": "Electricity Distributor", "abbreviation": "ED" },
+      { "fullName": "Gas Supplier 1", "abbreviation": "GS1" },
+      { "fullName": "Gas Supplier 2", "abbreviation": "GS2" },
+      { "fullName": "Gas Transporter", "abbreviation": "GT" },
+      { "fullName": "Other User", "abbreviation": "OU" },
+      { "fullName": "Registered Supplier Agent", "abbreviation": "RSA" },
+      { "fullName": "Meter Data Retriever", "abbreviation": "MDR" }
+    ]
+  }

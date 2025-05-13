@@ -1,0 +1,68 @@
+[
+  {
+    "srv_code": "1.1.1",
+    "srv_name": "Update Import Tariff (Primary Element)",
+    "critical": true,
+    "on_demand": true,
+    "future_dated_device_mode": "Device",
+    "supports_future_date": true,
+    "dcc_scheduled": false,
+    "new_device_request": false,
+    "eligible_user_roles": ["IS", "GS"],
+    "adaptor_validates_by_duis": true,
+    "command_variants": [4,5,6,7]
+  },
+  {
+    "srv_code": "1.1.2",
+    "srv_name": "Update Import Tariff (Secondary Element)",
+    "critical": true,
+    "on_demand": true,
+    "future_dated_device_mode": "Device",
+    "supports_future_date": true,
+    "dcc_scheduled": false,
+    "new_device_request": false,
+    "eligible_user_roles": ["IS"],
+    "adaptor_validates_by_duis": true,
+    "command_variants": [4,5,6,7]
+  },
+  {
+    "srv_code": "1.5",
+    "srv_name": "Update Meter Balance",
+    "critical": true,
+    "on_demand": true,
+    "future_dated_device_mode": "No",
+    "supports_future_date": false,
+    "dcc_scheduled": false,
+    "new_device_request": false,
+    "eligible_user_roles": ["IS", "GS"],
+    "adaptor_validates_by_duis": true,
+    "command_variants": [4,5,6,7]
+  },
+  {
+    "srv_code": "3.2",
+    "srv_name": "Restrict Access For Change Of Tenancy",
+    "critical": false,
+    "on_demand": true,
+    "future_dated_device_mode": "DSP",
+    "supports_future_date": true,
+    "dcc_scheduled": false,
+    "new_device_request": false,
+    "eligible_user_roles": ["IS", "GS"],
+    "adaptor_validates_by_duis": true,
+    "command_variants": [1,2,3]
+  },
+  {
+    "srv_code": "5.1",
+    "srv_name": "Create Schedule",
+    "critical": false,
+    "on_demand": false,
+    "future_dated_device_mode": "No",
+    "supports_future_date": false,
+    "dcc_scheduled": true,
+    "new_device_request": false,
+    "eligible_user_roles": ["IS", "ES", "ED", "GS", "GT", "MDR", "OU"],
+    "adaptor_validates_by_duis": true,
+    "command_variants": [8]
+  }
+  // ... ADD ALL OTHER SRVs FROM YOUR MATRIX HERE
+]
