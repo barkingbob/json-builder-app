@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Builder for CSW Adapter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>JSON Builder – CSW Adapter</h1>
+
+        <div class="step">
+            <h2>Step 1: Select Environment</h2>
+            <select id="environmentSelect">
+                <option value="">-- Select Environment --</option>
+            </select>
+        </div>
+
+        <div class="step">
+            <h2>Step 2: Select Role</h2>
+            <select id="roleSelect" disabled>
+                <option value="">-- Select Role --</option>
+            </select>
+        </div>
+
+        <div class="step">
+            <h2>Step 3: Select DUIS Version</h2>
+            <select id="duisVersionSelect" disabled>
+                <option value="">-- Select DUIS Version --</option>
+            </select>
+        </div>
+
+        <div class="step result-display">
+            <h3>Determined Originator Name:</h3>
+            <pre id="originatorNameDisplay">N/A</pre>
+        </div>
+
+        <div class="step">
+            <h2>Step 4: Select Service Request Variant (SRV)</h2>
+            <select id="srvSelect" disabled>
+                <option value="">-- Select SRV --</option>
+            </select>
+        </div>
+        
+        <div class="step srv-form-container">
+            <h2>Step 5: Fill SRV Parameters</h2>
+            <div id="srvSpecificForm">
+                <p>SRV specific fields will appear here.</p>
+            </div>
+            <div>
+                <label for="cvSelect">Command Variant (cv):</label>
+                <select id="cvSelect" disabled>
+                    <option value="">-- Select CV --</option>
+                </select>
+            </div>
+            <div id="futureDateContainer" style="display: none;">
+                <label for="executionDateTime">Execution Date/Time (Future):</label>
+                <input type="datetime-local" id="executionDateTime">
+            </div>
+            <div id="targetGuidContainer" style="display: none;">
+                <label for="targetGuid">Target GUID:</label>
+                <input type="text" id="targetGuid" placeholder="00-DB-12-34-56-78-90-A0">
+            </div>
+             <div id="targetCv8DisplayContainer" style="display: none;">
+                <label>Target (for CV 8):</label>
+                <pre id="targetCv8Display">N/A</pre>
+            </div>
+        </div>
+
+
+        <button id="generateJsonButton" disabled>Generate JSON & Curl</button>
+
+        <div class="output-area">
+            <h2>Generated JSON:</h2>
+            <button id="copyJsonButton">Copy JSON</button>
+            <pre id="jsonOutput">{}</pre>
+        </div>
+
+        <div class="output-area">
+            <h2>Generated Curl Command:</h2>
+            <button id="copyCurlButton">Copy Curl</button>
+            <pre id="curlOutput">curl ...</pre>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

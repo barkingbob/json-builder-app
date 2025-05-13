@@ -1,0 +1,1129 @@
+{
+  "openapi" : "3.0.3",
+  "info" : {
+    "title" : "Configurator API",
+    "description" : "Configurator Services",
+    "contact" : {
+      "name" : "Critical Software",
+      "url" : "https://criticalsoftware.com"
+    },
+    "version" : "1.0.0-SNAPSHOT"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080",
+    "description" : "Auto generated value"
+  }, {
+    "url" : "http://0.0.0.0:8080",
+    "description" : "Auto generated value"
+  } ],
+  "tags" : [ {
+    "name" : "Configuration upload API",
+    "description" : "TAF Adaptor configuration upload endpoints"
+  } ],
+  "paths" : {
+    "/v1/configuration/adt" : {
+      "get" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Retrieve a list containing all User Identifiers with ADT configured",
+        "description" : "This endpoint allows to retrieve a list containing all the Service User Identifiers that have ADT (Anomaly Detection Thresholds) configured.",
+        "operationId" : "retrieveAdtUserIdentifiers",
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successful.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdtUserIdentifiersListDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to retrieve the configuration.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Sets or updates the ADT configuration for a specific Service User",
+        "description" : "This endpoint allows to submit a new ADT (Anomaly Detection Thresholds) configuration for a specific Service User in CSV format.\n\nThe CSV content shall be according to its specification:\n\n * 1st line - Service User EUI-64 identifier\n\n * 2nd line - Anti-replay sequence counter\n\n * Next lines - Each line should be a record containing the srv, warning threshold, quarantine threshold, and a time period, separated by commas.",
+        "operationId" : "uploadAdtConfiguration",
+        "requestBody" : {
+          "content" : {
+            "text/csv" : {
+              "schema" : {
+                "pattern" : "\\S",
+                "type" : "string"
+              },
+              "example" : "00-A3-45-00-01-02-CA-FE\n123\n1.1.1,100,150,60\n4.8.1,0,0,720\n11.2,10,20,60\n11.2,200,350,1440"
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Error. At least one specific body validation failed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Error. The request was submitted with an unsupported media type value.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to persist the submitted content.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/adt/{eui-64}" : {
+      "get" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Retrieve the ADT configuration for a specific Service User",
+        "description" : "This endpoint allows to retrieve the ADT (Anomaly Detection Thresholds) configuration for a specific Service User in CSV format.",
+        "operationId" : "retrieveAdtConfiguration",
+        "parameters" : [ {
+          "name" : "eui-64",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "pattern" : "^([0-9A-Fa-f]{2}-){7}([0-9A-Fa-f]{2})$",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successful.",
+            "content" : {
+              "text/csv" : {
+                "example" : "00-A3-45-00-01-02-CA-FE\n123\n1.1.1,100,150,60\n4.8.1,0,0,720\n11.2,10,20,60\n11.2,200,350,1440"
+              }
+            }
+          },
+          "404" : {
+            "description" : "Error. The identifier submitted has no ADT records.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to retrieve the configuration.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/devices" : {
+      "get" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Gets the devices configuration",
+        "description" : "This endpoint retrieves the devices configuration.",
+        "operationId" : "retrieveDevicesConfiguration",
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successful.",
+            "content" : {
+              "application/yaml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DevicesRootConfigurationDto"
+                },
+                "example" : "adaptor:\n  devices:\n    - eui: ff-ff-ff-ff-ff-ff-ff-01\n      smets-version: 2\n    - eui: ff-ff-ff-ff-ff-ff-ff-02\n      smets-version: 2"
+              }
+            }
+          },
+          "204" : {
+            "description" : "Success. No devices configuration available."
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to retrieve the configuration.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Sets or updates the devices configuration",
+        "description" : "This endpoint allows to submit a new configuration of devices in YAML format.",
+        "operationId" : "uploadDevicesConfiguration",
+        "requestBody" : {
+          "content" : {
+            "application/yaml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DevicesRootConfigurationDto"
+              },
+              "example" : "adaptor:\n  devices:\n    - eui: ff-ff-ff-ff-ff-ff-ff-01\n      smets-version: 2\n    - eui: ff-ff-ff-ff-ff-ff-ff-02\n      smets-version: 2"
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Error. At least one specific body validation failed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Check specific endpoint for the methods allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Error. The request was submitted with an unsupported media type value.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to persist the submitted content.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/external-certificates" : {
+      "get" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Gets the external certificates configuration",
+        "description" : "This endpoint allows to retrieve external certificates configuration in YAML format.",
+        "operationId" : "retrieveExternalCertificatesConfiguration",
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successful.",
+            "content" : {
+              "application/yaml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExternalCertificatesRootDto"
+                },
+                "example" : "adaptor:\n  providers:\n    - name: provider1\n      type: pkcs12\n      path: /path/to/keystore.p12\n      password-name: provider1Password\n  certificates:\n    - issuer: CN=X,OU=00\n      serial-number: 12345678901234\n      subject-name: 01-02-03-04-0a-0b-0c-0d\n      key-usage: DS\n      status: I\n      provider: provider1\n      alias: ds-cert-acb\n    - issuer: CN=Y\n      serial-number: 1234567890123456\n      subject-alt-name: ff-ff-ff-ff-ff-ff-ff-01\n      key-usage: KA\n      status: I\n      provider: provider1\n      alias: ka-cert-esme0001"
+              }
+            }
+          },
+          "204" : {
+            "description" : "Success. No external certificates configuration available."
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to process the submitted request.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Sets or updates the external certificates configuration",
+        "description" : "This endpoint allows to submit a new configuration of external certificates material in YAML format.",
+        "operationId" : "uploadExternalCertificatesConfiguration",
+        "requestBody" : {
+          "content" : {
+            "application/yaml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ExternalCertificatesRootDto"
+              },
+              "example" : "adaptor:\n  providers:\n    - name: provider1\n      type: pkcs12\n      path: /path/to/keystore.p12\n      password-name: provider1Password\n  certificates:\n    - issuer: CN=X,OU=00\n      serial-number: 12345678901234\n      subject-name: 01-02-03-04-0a-0b-0c-0d\n      key-usage: DS\n      status: I\n      provider: provider1\n      alias: ds-cert-acb\n    - issuer: CN=Y\n      serial-number: 1234567890123456\n      subject-alt-name: ff-ff-ff-ff-ff-ff-ff-01\n      key-usage: KA\n      status: I\n      provider: provider1\n      alias: ka-cert-esme0001"
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Error. At least one specific body validation failed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Check specific endpoint for the methods allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Error. The request was submitted with an unsupported media type value.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to process the submitted request.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/service-users" : {
+      "get" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Retrieve the current Service Users configuration",
+        "description" : "This endpoint retrieves the Service Users configuration currently in use.",
+        "operationId" : "retrieveServiceUsersConfiguration",
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successful.",
+            "content" : {
+              "application/yaml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServiceUsersRootDto"
+                },
+                "example" : "adaptor:\n  service-users:\n    - name: supplier\n      eui: 00-00-00-00-00-00-00-01\n      role: supplier\n      xml-signing-key: ds-xml-key-supplier1\n      urp-ka-key: ka-key-supplier1\n      devices:\n        - eui: ff-ff-ff-ff-ff-ff-ff-01\n          digital-signature-key: ds-key-supplier1\n          key-agreement-key: ka-key-supplier1\n          pre-payment-top-up-key: ka-pp-key-supplier1\n        - eui: ff-ff-ff-ff-ff-ff-ff-02\n          digital-signature-key: ds-key-supplier1\n          key-agreement-key: ka-key-supplier1\n          pre-payment-top-up-key: ka-pp-key-supplier1\n    - name: key-rotation-supplier\n      eui: 00-00-00-00-00-00-00-01\n      role: supplier\n      xml-signing-key: ds-xml-key2-supplier1\n      urp-ka-key: ka-key2-supplier1\n      devices:\n        - eui: ff-ff-ff-ff-ff-ff-ff-01\n          digital-signature-key: ds-key2-supplier1\n          key-agreement-key: ka-key2-supplier1\n          pre-payment-top-up-key: ka-pp-key2-supplier1\n        - eui: ff-ff-ff-ff-ff-ff-ff-02\n          digital-signature-key: ds-key2-supplier1\n          key-agreement-key: ka-key2-supplier1\n          pre-payment-top-up-key: ka-pp-key2-supplier1\n    - name: fake-supplier\n      eui: 00-00-00-00-00-00-00-01\n      role: supplier\n      xml-signing-key: ds-xml-key-supplierX\n      urp-ka-key: ka-key-supplierX\n      devices:\n        - eui: ff-ff-ff-ff-ff-ff-ff-01\n          digital-signature-key: ds-key-supplierX\n          key-agreement-key: ka-key-supplierX\n          pre-payment-top-up-key: ka-pp-key-supplierX"
+              }
+            }
+          },
+          "204" : {
+            "description" : "Success. No service users configuration available."
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to retrieve the configuration.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Sets or updates the service users configuration",
+        "description" : "This endpoint allows to submit a new configuration of service users in YAML format.",
+        "operationId" : "uploadServiceUsersConfiguration",
+        "requestBody" : {
+          "content" : {
+            "application/yaml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ServiceUsersRootDto"
+              },
+              "example" : "adaptor:\n  service-users:\n    - name: supplier\n      eui: 00-00-00-00-00-00-00-01\n      role: supplier\n      xml-signing-key: ds-xml-key-supplier1\n      urp-ka-key: ka-key-supplier1\n      devices:\n        - eui: ff-ff-ff-ff-ff-ff-ff-01\n          digital-signature-key: ds-key-supplier1\n          key-agreement-key: ka-key-supplier1\n          pre-payment-top-up-key: ka-pp-key-supplier1\n        - eui: ff-ff-ff-ff-ff-ff-ff-02\n          digital-signature-key: ds-key-supplier1\n          key-agreement-key: ka-key-supplier1\n          pre-payment-top-up-key: ka-pp-key-supplier1\n    - name: key-rotation-supplier\n      eui: 00-00-00-00-00-00-00-01\n      role: supplier\n      xml-signing-key: ds-xml-key2-supplier1\n      urp-ka-key: ka-key2-supplier1\n      devices:\n        - eui: ff-ff-ff-ff-ff-ff-ff-01\n          digital-signature-key: ds-key2-supplier1\n          key-agreement-key: ka-key2-supplier1\n          pre-payment-top-up-key: ka-pp-key2-supplier1\n        - eui: ff-ff-ff-ff-ff-ff-ff-02\n          digital-signature-key: ds-key2-supplier1\n          key-agreement-key: ka-key2-supplier1\n          pre-payment-top-up-key: ka-pp-key2-supplier1\n    - name: fake-supplier\n      eui: 00-00-00-00-00-00-00-01\n      role: supplier\n      xml-signing-key: ds-xml-key-supplierX\n      urp-ka-key: ka-key-supplierX\n      devices:\n        - eui: ff-ff-ff-ff-ff-ff-ff-01\n          digital-signature-key: ds-key-supplierX\n          key-agreement-key: ka-key-supplierX\n          pre-payment-top-up-key: ka-pp-key-supplierX"
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Error. At least one specific body validation failed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Check specific endpoint for the methods allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Error. The request was submitted with an unsupported media type value.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to persist the submitted content.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/su-crypto" : {
+      "get" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Retrieves the service users cryptography configuration",
+        "description" : "This endpoint retrieves the stored Service Users Cryptographic Material configuration in YAML format.",
+        "operationId" : "retrieveServiceUserCryptographyConfiguration",
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successful.",
+            "content" : {
+              "application/yaml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServiceUsersCryptoRootDto"
+                },
+                "example" : "adaptor:\n  providers:\n    - name: provider1\n      type: pkcs11\n      path: relative/path/to/pkcs11.cfg\n      password-name: provider1Password\n    - name: provider2\n      type: pkcs12\n      path: /absolute/path/to/keystore.p12\n      password-name: provider2Password\n  keys:\n    - name: key1\n      key-provider: provider1\n      key-alias: ds-key-supplier1\n      key-password-name: key1Password\n      certificate-provider: provider1\n      certificate-alias: ds-cert-supplier1\n    - name: key2\n      key-provider: provider2\n      key-alias: ds-key-other\n      key-password-name: key2Password"
+              }
+            }
+          },
+          "204" : {
+            "description" : "Success. No service users cryptography configuration available."
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Only PUT and GET are allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to retrieve the configuration.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Configuration upload API" ],
+        "summary" : "Sets or updates the Service Users Cryptographic Material configuration",
+        "description" : "This endpoint allows to submit a new configuration of Cryptographic Material for the Service Users in YAML format.",
+        "operationId" : "uploadServiceUsersCryptographyConfiguration",
+        "requestBody" : {
+          "content" : {
+            "application/yaml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ServiceUsersCryptoRootDto"
+              },
+              "example" : "adaptor:\n  providers:\n    - name: provider1\n      type: pkcs11\n      path: relative/path/to/pkcs11.cfg\n      password-name: provider1Password\n    - name: provider2\n      type: pkcs12\n      path: /absolute/path/to/keystore.p12\n      password-name: provider2Password\n  keys:\n    - name: key1\n      key-provider: provider1\n      key-alias: ds-key-supplier1\n      key-password-name: key1Password\n      certificate-provider: provider1\n      certificate-alias: ds-cert-supplier1\n    - name: key2\n      key-provider: provider2\n      key-alias: ds-key-other\n      key-password-name: key2Password"
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Success. The request was successfully processed and stored.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenericTafResponseDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Error. At least one specific body validation failed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Error. An invalid method was used. Check specific endpoint for the methods allowed.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Error. The request was submitted with an unsupported media type value.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error. Unable to persist the submitted content.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TafErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "AdtUserIdentifiersListDto" : {
+        "required" : [ "status", "timestamp", "uuid", "adtUserIds" ],
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/Status"
+            }, {
+              "description" : "The result status of the request submission."
+            } ]
+          },
+          "timestamp" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ZonedDateTime"
+            }, {
+              "description" : "The timestamp of the API call."
+            } ]
+          },
+          "uuid" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/UUID"
+            }, {
+              "description" : "The Universally Unique Identifier (UUID) of the API request."
+            } ]
+          },
+          "adtUserIds" : {
+            "description" : "Array of EUI-64 identifiers that have ADT configurations stored.",
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "CertificateKeyUsage" : {
+        "enum" : [ "DS", "KA" ],
+        "type" : "string"
+      },
+      "CertificateStatus" : {
+        "enum" : [ "P", "I", "N", "E", "R" ],
+        "type" : "string"
+      },
+      "DeviceDto" : {
+        "required" : [ "eui", "smets-version" ],
+        "type" : "object",
+        "properties" : {
+          "eui" : {
+            "description" : "An IEEE EUI-64 compliant media access control address.",
+            "pattern" : "^([0-9A-Fa-f]{2}-){7}([0-9A-Fa-f]{2})$",
+            "type" : "string"
+          },
+          "smets-version" : {
+            "format" : "int32",
+            "description" : "The device SMETS version which can be either SMETS1 (1) or SMETS2 (2).",
+            "maximum" : 2,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }
+      },
+      "DevicesListDto" : {
+        "required" : [ "devices" ],
+        "type" : "object",
+        "properties" : {
+          "devices" : {
+            "description" : "This element should contain a devices object entry.",
+            "minItems" : 1,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DeviceDto"
+            }
+          }
+        }
+      },
+      "DevicesRootConfigurationDto" : {
+        "required" : [ "adaptor" ],
+        "type" : "object",
+        "properties" : {
+          "adaptor" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/DevicesListDto"
+            }, {
+              "description" : "This element represents the adaptor root element of the devices configuration."
+            } ]
+          }
+        }
+      },
+      "ExternalCertificateDto" : {
+        "required" : [ "issuer", "serial-number", "key-usage", "provider", "alias" ],
+        "type" : "object",
+        "properties" : {
+          "issuer" : {
+            "description" : "Certificate issuer.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "serial-number" : {
+            "description" : "Certificate serial number.",
+            "type" : "integer"
+          },
+          "subject-name" : {
+            "description" : "Certificate SubjectName, for Organisational certificates, namely ACB.",
+            "pattern" : "^([0-9A-Fa-f]{2}-){7}([0-9A-Fa-f]{2})$",
+            "type" : "string"
+          },
+          "subject-alt-name" : {
+            "description" : "Certificate SubjectAltName, for Device certificates.",
+            "pattern" : "^([0-9A-Fa-f]{2}-){7}([0-9A-Fa-f]{2})$",
+            "type" : "string"
+          },
+          "key-usage" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/CertificateKeyUsage"
+            }, {
+              "description" : "Certificate key usage."
+            } ]
+          },
+          "status" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/CertificateStatus"
+            }, {
+              "description" : "Certificate status."
+            } ]
+          },
+          "provider" : {
+            "description" : "Name of the certificate provider.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "alias" : {
+            "description" : "Alias of the certificate.",
+            "pattern" : "\\S",
+            "type" : "string"
+          }
+        }
+      },
+      "ExternalCertificatesAdaptorDto" : {
+        "required" : [ "providers", "certificates" ],
+        "type" : "object",
+        "properties" : {
+          "providers" : {
+            "description" : "The list with the provider entries.",
+            "minItems" : 1,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProviderDto"
+            }
+          },
+          "certificates" : {
+            "description" : "The list with the external certificate entries.",
+            "minItems" : 1,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExternalCertificateDto"
+            }
+          }
+        }
+      },
+      "ExternalCertificatesRootDto" : {
+        "type" : "object",
+        "properties" : {
+          "adaptor" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ExternalCertificatesAdaptorDto"
+            }, {
+              "description" : "This element represents the adaptor root element of the external certificates configuration."
+            } ]
+          }
+        }
+      },
+      "GenericTafResponseDto" : {
+        "required" : [ "status", "timestamp", "uuid" ],
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/Status"
+            }, {
+              "description" : "The result status of the request submission."
+            } ]
+          },
+          "timestamp" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ZonedDateTime"
+            }, {
+              "description" : "The timestamp of the API call."
+            } ]
+          },
+          "uuid" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/UUID"
+            }, {
+              "description" : "The Universally Unique Identifier (UUID) of the API request."
+            } ]
+          }
+        }
+      },
+      "KeyDto" : {
+        "required" : [ "name", "key-provider", "key-alias", "key-password-name" ],
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "description" : "Key name to be used as reference in Service User Configuration",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "key-provider" : {
+            "description" : "Reference to the key provider name, specified in the providers array.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "key-alias" : {
+            "description" : "Key alias, as configured in the respective keystore/PKCS#11.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "key-password-name" : {
+            "description" : "Key password name.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "certificate-provider" : {
+            "description" : "Name of the certificate provider associated with the private key, specified in the providers array.",
+            "type" : "string"
+          },
+          "certificate-alias" : {
+            "description" : "Alias of the certificate associated with the private key.",
+            "type" : "string"
+          }
+        }
+      },
+      "ProviderDto" : {
+        "required" : [ "name", "type", "path", "password-name" ],
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "description" : "Provider name to be used as reference.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "type" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ProviderType"
+            }, {
+              "description" : "Type of cryptographic providers."
+            } ]
+          },
+          "path" : {
+            "description" : "The path to the PKCS#11/PKCS#12 config/keystore file.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "password-name" : {
+            "description" : "PKCS#11/Keystore password name.",
+            "pattern" : "\\S",
+            "type" : "string"
+          }
+        }
+      },
+      "ProviderType" : {
+        "enum" : [ "pkcs11", "pkcs12" ],
+        "type" : "string"
+      },
+      "ServiceUsersCryptoAdaptorDto" : {
+        "required" : [ "providers", "keys" ],
+        "type" : "object",
+        "properties" : {
+          "providers" : {
+            "description" : "This element should contain an array of provider entries.",
+            "minItems" : 1,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProviderDto"
+            }
+          },
+          "keys" : {
+            "description" : "This element should contain an array of key entries.",
+            "minItems" : 1,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/KeyDto"
+            }
+          }
+        }
+      },
+      "ServiceUsersCryptoRootDto" : {
+        "required" : [ "adaptor" ],
+        "type" : "object",
+        "properties" : {
+          "adaptor" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ServiceUsersCryptoAdaptorDto"
+            }, {
+              "description" : "This element represents the adaptor root element of the Service Users Crypto Configuration."
+            } ]
+          }
+        }
+      },
+      "ServiceUsersDevicesDto" : {
+        "required" : [ "eui" ],
+        "type" : "object",
+        "properties" : {
+          "eui" : {
+            "description" : "Device identifier.",
+            "pattern" : "^([0-9A-Fa-f]{2}-){7}([0-9A-Fa-f]{2})$",
+            "type" : "string"
+          },
+          "digital-signature-key" : {
+            "description" : "Name of the private DS (digital signature) key that is paired with the public key within the device's Trust Anchor Cell (TAC) for DS (cell usage = management).",
+            "type" : "string"
+          },
+          "key-agreement-key" : {
+            "description" : "Name of the private KA (key agreement) key that is paired with the public key within the device's Trust Anchor Cell (TAC) for KA (cell usage = management).",
+            "type" : "string"
+          },
+          "pre-payment-top-up-key" : {
+            "description" : "Name of the private KA (key agreement) key used for Top Up, that is paired with the public key within the device's Trust Anchor Cell (TAC) for KA (cell usage = prepaymentTopUp).",
+            "type" : "string"
+          }
+        }
+      },
+      "ServiceUsersDto" : {
+        "required" : [ "name", "eui", "xml-signing-key" ],
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "description" : "Service User name.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "eui" : {
+            "description" : "Identifier associated to the Service User. Should be an EUI-64.",
+            "pattern" : "^([0-9A-Fa-f]{2}-){7}([0-9A-Fa-f]{2})$",
+            "type" : "string"
+          },
+          "role" : {
+            "description" : "Service User role.",
+            "type" : "string"
+          },
+          "xml-signing-key" : {
+            "description" : "Name of the Service User key to be used to sign XML DUIS Requests.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "urp-ka-key" : {
+            "description" : "Name of the private KA (key agreement) key to be used in responses containing sensitive data, when using the URP (Unknown Remote Party) pattern.",
+            "type" : "string"
+          },
+          "devices" : {
+            "description" : "Array of devices associated with the service user.",
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ServiceUsersDevicesDto"
+            }
+          }
+        }
+      },
+      "ServiceUsersListDto" : {
+        "required" : [ "service-users" ],
+        "type" : "object",
+        "properties" : {
+          "service-users" : {
+            "description" : "This element should contain an array of service-user entries.",
+            "minItems" : 1,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ServiceUsersDto"
+            }
+          }
+        }
+      },
+      "ServiceUsersRootDto" : {
+        "required" : [ "adaptor" ],
+        "type" : "object",
+        "properties" : {
+          "adaptor" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ServiceUsersListDto"
+            }, {
+              "description" : "This element represents the adaptor root element of the service users configuration."
+            } ]
+          }
+        }
+      },
+      "Status" : {
+        "enum" : [ "error", "success" ],
+        "type" : "string"
+      },
+      "TafErrorResponseDto" : {
+        "required" : [ "status", "timestamp", "uuid", "errorCode", "errorMessage" ],
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/Status"
+            }, {
+              "description" : "The result status of the request submission."
+            } ]
+          },
+          "timestamp" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/ZonedDateTime"
+            }, {
+              "description" : "The timestamp of the API call."
+            } ]
+          },
+          "uuid" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/UUID"
+            }, {
+              "description" : "The Universally Unique Identifier (UUID) of the API request."
+            } ]
+          },
+          "errorCode" : {
+            "description" : "The response error code.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "errorMessage" : {
+            "description" : "The response error message.",
+            "pattern" : "\\S",
+            "type" : "string"
+          }
+        }
+      },
+      "UUID" : {
+        "format" : "uuid",
+        "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+        "type" : "string"
+      },
+      "ZonedDateTime" : {
+        "format" : "date-time",
+        "type" : "string",
+        "example" : "2022-03-10T12:15:50-04:00"
+      }
+    }
+  }
+}
