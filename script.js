@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetCv8DisplayContainer = document.getElementById('targetCv8DisplayContainer');
     const targetCv8Display = document.getElementById('targetCv8Display');
     const srvSpecificForm = document.getElementById('srvSpecificForm');
-    
+
     const generateJsonButton = document.getElementById('generateJsonButton');
     const jsonOutput = document.getElementById('jsonOutput');
     const curlOutput = document.getElementById('curlOutput');
@@ -34,12 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedRole: null,
         selectedDuisVersion: null,
         determinedOriginatorName: null,
-        selectedSrvData: null, 
-        selectedSrvSchema: null, 
+        selectedSrvData: null,
+        selectedSrvSchema: null, // The main Srv_X_Y_Z_Dto schema for the selected SRV
         selectedCv: null,
         futureDateTimeValue: null,
         targetValue: null,
-        formBodyParams: {} 
+        formBodyParams: {}
     };
 
     // --- Helper: CSV Parser ---
@@ -75,22 +75,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!originatorRes.ok) throw new Error(`Failed to fetch OriginatorNameList.csv: ${originatorRes.status} ${originatorRes.statusText}`);
             if (!srvMatrixRes.ok) throw new Error(`Failed to fetch srv-matrix-config.json: ${srvMatrixRes.status} ${srvMatrixRes.statusText}`);
             if (!openapiRes.ok) throw new Error(`Failed to fetch openapi-adaptor-request-executor.json: ${openapiRes.status} ${openapiRes.statusText}`);
-            
+
             console.log("All config files fetched successfully.");
 
             config.app = await appRes.json();
-            console.log("app-config.json parsed:", config.app);
+            console.log("app-config.json parsed.");
 
             const originatorCsvText = await originatorRes.text();
             config.originators = parseCSV(originatorCsvText);
             console.log("OriginatorNameList.csv parsed. Entries:", config.originators.length);
-            
+
             config.srvMatrix = await srvMatrixRes.json();
             console.log("srv-matrix-config.json parsed. Entries:", config.srvMatrix.length);
-            
+
             config.openapiExecutor = await openapiRes.json();
             console.log("openapi-adaptor-request-executor.json parsed.");
-            
+
             initializeUI();
         } catch (error) {
             console.error("Error loading configurations:", error);
@@ -100,19 +100,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI Initialization and Population Logic ---
     function initializeUI() {
-        console.log("Initializing UI...");
         populateEnvironments();
         populateRoles();
         setupEventListeners();
     }
 
     function populateEnvironments() {
-        console.log("Populating environments dropdown...");
-        if (config && config.app && config.app.environments && Array.isArray(config.app.environments)) {
+        if (config.app && config.app.environments && Array.isArray(config.app.environments)) {
             config.app.environments.forEach(env => {
                 if (env && typeof env.name === 'string') {
                     const option = document.createElement('option');
-                    option.value = JSON.stringify(env); // Store whole object
+                    option.value = JSON.stringify(env);
                     option.textContent = env.name;
                     environmentSelect.appendChild(option);
                 }
@@ -125,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function populateRoles() {
         config.app.roles.forEach(role => {
             const option = document.createElement('option');
-            option.value = JSON.stringify(role); // Store whole object
+            option.value = JSON.stringify(role);
             option.textContent = role.fullName;
             roleSelect.appendChild(option);
         });
@@ -133,17 +131,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function populateDuisVersions() {
         duisVersionSelect.innerHTML = '<option value="">-- Select DUIS Version --</option>';
-        resetDownstreamUI('duis');
+        // currentState.selectedDuisVersion reset by upstream change
 
-        if (!currentState.selectedEnvironment || !currentState.selectedRole) return;
+        if (!currentState.selectedEnvironment || !currentState.selectedRole) {
+            duisVersionSelect.disabled = true;
+            return;
+        }
 
         const relevantOriginators = config.originators.filter(org =>
             org.Environment === currentState.selectedEnvironment.name &&
-            org['User Role'] === currentState.selectedRole.abbreviation
+            org['User Role'] === currentState.selectedRole.abbreviation // Assuming 'User Role' is the CSV header for abbreviation
         );
-        
+
         const duisVersions = [...new Set(relevantOriginators.map(org => org['DUIS Version']))].sort((a, b) => parseFloat(a) - parseFloat(b));
-        
+
         duisVersions.forEach(version => {
             const option = document.createElement('option');
             option.value = version;
@@ -153,37 +154,55 @@ document.addEventListener('DOMContentLoaded', () => {
         duisVersionSelect.disabled = duisVersions.length === 0;
     }
 
-    function displayOriginatorName() {
-        resetDownstreamUI('originator');
-        if (!currentState.selectedEnvironment || !currentState.selectedRole || !currentState.selectedDuisVersion) return;
+    function displayOriginatorNameAndPopulateSrvs() {
+        originatorNameDisplay.textContent = "N/A";
+        currentState.determinedOriginatorName = null;
 
-        const foundOriginator = config.originators.find(org =>
-            org.Environment === currentState.selectedEnvironment.name &&
-            org['User Role'] === currentState.selectedRole.abbreviation &&
-            org['DUIS Version'] === currentState.selectedDuisVersion
-        );
+        if (currentState.selectedEnvironment && currentState.selectedRole && currentState.selectedDuisVersion) {
+            const foundOriginator = config.originators.find(org =>
+                org.Environment === currentState.selectedEnvironment.name &&
+                org['User Role'] === currentState.selectedRole.abbreviation && // Assuming 'User Role' is the CSV header for abbreviation
+                org['DUIS Version'] === currentState.selectedDuisVersion
+            );
 
-        if (foundOriginator && foundOriginator.originatorName) {
-            currentState.determinedOriginatorName = foundOriginator.originatorName;
-            originatorNameDisplay.textContent = currentState.determinedOriginatorName;
-            populateSrvs();
-        } else {
-            originatorNameDisplay.textContent = "No Originator found for selection.";
+            if (foundOriginator && foundOriginator.originatorName) { // UPDATED based on clarification: CSV header for this is 'originatorName'
+                currentState.determinedOriginatorName = foundOriginator.originatorName;
+                originatorNameDisplay.textContent = currentState.determinedOriginatorName;
+            } else {
+                originatorNameDisplay.textContent = "No Originator found for selection.";
+            }
         }
+        populateSrvs(); // Populate/clear SRVs based on new originator status
     }
 
     function populateSrvs() {
         resetDownstreamUI('srv');
-        if (!currentState.selectedRole) return;
+        srvSelect.innerHTML = '<option value="">-- Select SRV --</option>';
+
+        if (!currentState.selectedRole || !currentState.determinedOriginatorName) {
+            // If no originator, likely means DUIS is not selected for a role that needs it,
+            // or the combo doesn't exist. No SRVs should be shown.
+            srvSelect.disabled = true;
+            return;
+        }
 
         const roleAbbrev = currentState.selectedRole.abbreviation;
         let matrixRoleFilter = roleAbbrev;
         if (roleAbbrev.startsWith("IS")) matrixRoleFilter = "IS";
         if (roleAbbrev.startsWith("GS")) matrixRoleFilter = "GS";
 
-        const eligibleSrvs = config.srvMatrix.filter(srv => 
-            srv.eligible_user_roles.includes(matrixRoleFilter)
-        ).sort((a,b) => {
+        const eligibleSrvs = config.srvMatrix.filter(srv => {
+            if (!srv.eligible_user_roles.includes(matrixRoleFilter)) {
+                return false;
+            }
+            // Clarification #1: DUIS validation logic to be added later.
+            // For now, if adaptor_validates_by_duis is true, it means we need a selectedDuisVersion.
+            // The fact that determinedOriginatorName is set implies a DUIS was selected if one was needed for the originator.
+            // if (srv.adaptor_validates_by_duis === true && !currentState.selectedDuisVersion) {
+            //     return false;
+            // }
+            return true;
+        }).sort((a, b) => {
             const aParts = a.srv_code.split('.').map(Number);
             const bParts = b.srv_code.split('.').map(Number);
             for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
@@ -198,99 +217,175 @@ document.addEventListener('DOMContentLoaded', () => {
         eligibleSrvs.forEach(srv => {
             const option = document.createElement('option');
             option.value = srv.srv_code;
-            option.textContent = `${srv.srv_code} - ${srv.srv_name}`;
+            option.textContent = `${srv.srv_code} - ${srv.srv_name}`; // srv.srv_name from matrix
             srvSelect.appendChild(option);
         });
         srvSelect.disabled = eligibleSrvs.length === 0;
     }
 
-    function populateCvSelect() {
-        resetDownstreamUI('cv');
-        if (!currentState.selectedSrvData) return;
+    function handleSrvSelection() {
+        const srvCode = srvSelect.value;
+        currentState.selectedSrvData = config.srvMatrix.find(srv => srv.srv_code === srvCode) || null;
+        currentState.selectedSrvSchema = null;
+
+        resetDownstreamUI('srv'); // Clears CV, form, formBodyParams, target, outputs
+
+        if (currentState.selectedSrvData) {
+            cvSelect.disabled = false;
+            populateCvSelectAndForm();
+        } else {
+            cvSelect.disabled = true;
+        }
+    }
+
+    function populateCvSelectAndForm() {
+        cvSelect.innerHTML = '<option value="">-- Select CV --</option>';
+        currentState.selectedCv = null;
+
+        // Target and outputs are already cleared by resetDownstreamUI('srv') called in handleSrvSelection
+
+        if (!currentState.selectedSrvData) {
+            cvSelect.disabled = true;
+            return;
+        }
 
         currentState.selectedSrvData.command_variants.forEach(cv => {
             const option = document.createElement('option');
-            option.value = cv;
+            option.value = cv; // Value is number
             option.textContent = cv;
             cvSelect.appendChild(option);
         });
         cvSelect.disabled = currentState.selectedSrvData.command_variants.length === 0;
-        
-        futureDateContainer.style.display = currentState.selectedSrvData.supports_future_date ? 'block' : 'none';
-        if (!currentState.selectedSrvData.supports_future_date) {
-            executionDateTimeInput.value = ''; // Clear it if not supported
+
+        // Handle future date visibility based on SRV Matrix
+        const shouldShowFutureDate = currentState.selectedSrvData.supports_future_date;
+        futureDateContainer.style.display = shouldShowFutureDate ? 'block' : 'none';
+        if (!shouldShowFutureDate) {
+            executionDateTimeInput.value = '';
             currentState.futureDateTimeValue = null;
+        } else {
+            executionDateTimeInput.value = currentState.futureDateTimeValue || ''; // Retain if previously set
         }
         
         generateDynamicSrvForm();
     }
 
+    function handleCvSelection() {
+        currentState.selectedCv = cvSelect.value ? parseInt(cvSelect.value, 10) : null; // Store CV as number
+
+        // Reset only target and outputs - bodyParameters form and data are NOT touched
+        targetGuidContainer.style.display = 'none';
+        targetGuidInput.value = '';
+        targetCv8DisplayContainer.style.display = 'none';
+        targetCv8Display.textContent = 'N/A';
+        currentState.targetValue = null;
+
+        generateJsonButton.disabled = true;
+        jsonOutput.textContent = '{}';
+        curlOutput.textContent = 'curl ...';
+
+        if (currentState.selectedCv !== null) {
+            handleTargetField();
+        }
+    }
+
     function handleTargetField() {
         targetGuidContainer.style.display = 'none';
         targetCv8DisplayContainer.style.display = 'none';
-        targetGuidInput.value = '';
-        targetCv8Display.textContent = 'N/A';
-        currentState.targetValue = null;
-        generateJsonButton.disabled = true; // Disable until target is potentially set
 
-        if (!currentState.selectedCv || !currentState.selectedEnvironment) return;
+        if (!currentState.selectedCv || !currentState.selectedEnvironment) {
+            generateJsonButton.disabled = true;
+            return;
+        }
 
-        if (String(currentState.selectedCv) === "8") { // Ensure comparison as string or number consistently
+        const cvIsEight = currentState.selectedCv === 8;
+
+        if (cvIsEight) {
             currentState.targetValue = currentState.selectedEnvironment.target_eui64_cv8;
             targetCv8Display.textContent = currentState.targetValue;
             targetCv8DisplayContainer.style.display = 'block';
-            generateJsonButton.disabled = false; // Enable as target is auto-set
+            targetGuidInput.value = ''; 
+            generateJsonButton.disabled = !currentState.targetValue; // Enable if target is auto-set
         } else {
             targetGuidContainer.style.display = 'block';
-            // Button remains disabled until user types into GUID input if it's required
-            // Or enable it and validate on generate. For now, enable if CV is not 8
-            generateJsonButton.disabled = false;
+            // Restore previous non-CV8 target if user is tabbing around or re-selecting
+            if (currentState.targetValue && currentState.targetValue !== currentState.selectedEnvironment.target_eui64_cv8) {
+                targetGuidInput.value = currentState.targetValue;
+            } else {
+                targetGuidInput.value = ''; // Clear if previous was CV8 target or no target
+                currentState.targetValue = ''; // Reset state if clearing input
+            }
+            targetCv8Display.textContent = 'N/A';
+            generateJsonButton.disabled = !targetGuidInput.value.trim();
         }
     }
     
     function resetDownstreamUI(fromStep) {
-        switch(fromStep) {
-            case 'environment':
-                roleSelect.selectedIndex = 0;
-                // fall-through
-            case 'role':
-                duisVersionSelect.innerHTML = '<option value="">-- Select DUIS Version --</option>';
-                duisVersionSelect.disabled = true;
-                currentState.selectedDuisVersion = null;
-                 // fall-through
-            case 'duis':
-                originatorNameDisplay.textContent = "N/A";
-                currentState.determinedOriginatorName = null;
-                srvSelect.innerHTML = '<option value="">-- Select SRV --</option>';
-                srvSelect.disabled = true;
-                currentState.selectedSrvData = null;
-                currentState.selectedSrvSchema = null;
-                // fall-through
-            case 'srv':
-                cvSelect.innerHTML = '<option value="">-- Select CV --</option>';
-                cvSelect.disabled = true;
-                currentState.selectedCv = null;
-                // fall-through
-            case 'cv':
-                srvSpecificForm.innerHTML = '<p>SRV specific fields will appear here.</p>';
-                currentState.formBodyParams = {};
-                futureDateContainer.style.display = 'none';
-                executionDateTimeInput.value = '';
-                currentState.futureDateTimeValue = null;
-                targetGuidContainer.style.display = 'none';
-                targetGuidInput.value = '';
-                targetCv8DisplayContainer.style.display = 'none';
-                targetCv8Display.textContent = 'N/A';
-                currentState.targetValue = null;
-                generateJsonButton.disabled = true;
-                jsonOutput.textContent = '{}';
-                curlOutput.textContent = 'curl ...';
-                break;
+        // ... (Keep the more granular reset logic from the previous full script I provided)
+        // This was: if fromStep is 'srv', clear form and formBodyParams.
+        // If fromStep is 'cv', DO NOT clear form or formBodyParams.
+        const stepsToClear = {
+            environment: ['role', 'duis', 'originator', 'srv', 'cv', 'form', 'target', 'output'],
+            role: ['duis', 'originator', 'srv', 'cv', 'form', 'target', 'output'],
+            duis: ['originator', 'srv', 'cv', 'form', 'target', 'output'],
+            srv: ['cv', 'form', 'target', 'output'], 
+            cv: ['target', 'output'] 
+        };
+    
+        const toClear = stepsToClear[fromStep] || [];
+    
+        if (toClear.includes('role')) {
+            roleSelect.selectedIndex = 0; currentState.selectedRole = null; roleSelect.disabled = true;
         }
+        if (toClear.includes('duis')) {
+            duisVersionSelect.innerHTML = '<option value="">-- Select DUIS Version --</option>'; 
+            duisVersionSelect.disabled = true; currentState.selectedDuisVersion = null;
+        }
+        if (toClear.includes('originator')) {
+            originatorNameDisplay.textContent = "N/A"; currentState.determinedOriginatorName = null;
+        }
+        if (toClear.includes('srv')) {
+            srvSelect.innerHTML = '<option value="">-- Select SRV --</option>'; 
+            srvSelect.disabled = true; currentState.selectedSrvData = null; currentState.selectedSrvSchema = null;
+        }
+        if (toClear.includes('cv')) {
+            cvSelect.innerHTML = '<option value="">-- Select CV --</option>'; 
+            cvSelect.disabled = true; currentState.selectedCv = null;
+        }
+        if (toClear.includes('form')) { // This is critical
+            srvSpecificForm.innerHTML = '<p>SRV specific fields will appear here.</p>';
+            currentState.formBodyParams = {}; // Reset the data model for the form
+            futureDateContainer.style.display = 'none';
+            executionDateTimeInput.value = '';
+            currentState.futureDateTimeValue = null; 
+        }
+        if (toClear.includes('target')) {
+            targetGuidContainer.style.display = 'none'; targetGuidInput.value = '';
+            targetCv8DisplayContainer.style.display = 'none'; targetCv8Display.textContent = 'N/A';
+            currentState.targetValue = null;
+        }
+        if (toClear.includes('output')) {
+            generateJsonButton.disabled = true;
+            jsonOutput.textContent = '{}';
+            curlOutput.textContent = 'curl ...';
+        }
+    
+        // Re-evaluate disabled states
+        if (!currentState.selectedEnvironment) roleSelect.disabled = true;
+        if (!currentState.selectedRole || !currentState.selectedEnvironment) duisVersionSelect.disabled = true;
+        if (!currentState.determinedOriginatorName) srvSelect.disabled = true; // Originator needed for SRV list
+        if (!currentState.selectedSrvData) cvSelect.disabled = true;
+        if (!currentState.selectedCv || !currentState.targetValue) generateJsonButton.disabled = true;
+        else if (String(currentState.selectedCv) !== "8" && !targetGuidInput.value.trim()) generateJsonButton.disabled = true;
+        else generateJsonButton.disabled = false;
+
+
     }
+
 
     // --- Schema Resolver ---
     function getSchema(ref) {
+        // ... (Keep existing getSchema - it's good)
         if (!ref || !ref.startsWith('#/')) {
             console.warn("Invalid or non-internal $ref:", ref);
             return null;
@@ -311,7 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Dynamic Form Generation ---
     function generateDynamicSrvForm() {
         srvSpecificForm.innerHTML = ''; 
-        currentState.formBodyParams = {}; 
+        // currentState.formBodyParams is reset when SRV changes (via resetDownstreamUI('srv'))
+        // It should NOT be reset here if we want to preserve data on mere re-renders (though not strictly needed now)
 
         if (!currentState.selectedSrvData || !config.openapiExecutor) {
             srvSpecificForm.innerHTML = '<p>SRV not selected or OpenAPI spec not loaded.</p>';
@@ -337,55 +433,58 @@ document.addEventListener('DOMContentLoaded', () => {
             srvSpecificForm.innerHTML = `<p>Error: Could not resolve SRV DTO schema: ${requestBodySchemaRef}.</p>`;
             return;
         }
-        currentState.selectedSrvSchema = srvDtoSchema;
+        currentState.selectedSrvSchema = srvDtoSchema; // Store the main DTO (e.g., Srv_1_5_Dto)
 
-        const bodyParamsProperty = srvDtoSchema.properties?.bodyParameters;
-        if (!bodyParamsProperty) {
-            srvSpecificForm.innerHTML = `<p>No 'bodyParameters' defined for this SRV. If this SRV has no body params, this is normal.</p>`;
+        const bodyParamsPropertySchema = srvDtoSchema.properties?.bodyParameters;
+        
+        // Check if executionDateTime is a top-level field in the Srv_X_Y_Z_Dto and needs a form field
+        // This is separate from bodyParameters handling.
+        const formFragment = document.createDocumentFragment();
+        if (srvDtoSchema.properties?.executionDateTime && currentState.selectedSrvData.supports_future_date) {
+            // This DTO has executionDateTime directly, not within bodyParameters.
+            // The UI element for this is already #executionDateTime, handled by futureDateContainer visibility.
+            // Ensure its data path is handled if not already:
+            // For now, we assume `currentState.futureDateTimeValue` handles this top-level case if present.
+        }
+
+
+        if (!bodyParamsPropertySchema) {
+            // No bodyParameters defined in the Srv_X_Y_Z_Dto schema.
+            // If executionDateTime was also not top-level, then this SRV truly has no fillable body.
+             if (!srvDtoSchema.properties?.executionDateTime || !currentState.selectedSrvData.supports_future_date) {
+                srvSpecificForm.innerHTML = `<p>This SRV has no configurable body parameters.</p>`;
+            }
             return; 
         }
 
-        const bodyParamsSchemaRef = bodyParamsProperty.$ref;
-        let bodyParamsSchema = bodyParamsProperty; 
-
-        if (bodyParamsSchemaRef) {
-            bodyParamsSchema = getSchema(bodyParamsSchemaRef);
-        }
+        const bodyParamsSchemaActual = bodyParamsPropertySchema.$ref ? getSchema(bodyParamsPropertySchema.$ref) : bodyParamsPropertySchema;
         
-        if (!bodyParamsSchema) {
-            srvSpecificForm.innerHTML = `<p>Error: Could not resolve bodyParameters schema. Ref: ${bodyParamsSchemaRef || 'inline'}</p>`;
+        if (!bodyParamsSchemaActual) {
+            srvSpecificForm.innerHTML = `<p>Error: Could not resolve bodyParameters schema. Ref: ${bodyParamsPropertySchema.$ref || 'inline'}</p>`;
             return;
         }
         
-        if (bodyParamsSchema.type === 'object' && (!bodyParamsSchema.properties || Object.keys(bodyParamsSchema.properties).length === 0) && !bodyParamsSchema.additionalProperties) {
+        if (bodyParamsSchemaActual.type === 'object' && (!bodyParamsSchemaActual.properties || Object.keys(bodyParamsSchemaActual.properties).length === 0) && !bodyParamsSchemaActual.additionalProperties) {
              srvSpecificForm.innerHTML = `<p>This SRV has an empty 'bodyParameters' object (no specific fields to fill).</p>`;
         } else {
-            const formFragment = document.createDocumentFragment();
-            buildFormFieldsRecursive(bodyParamsSchema, formFragment, 'formBodyParams');
+            buildFormFieldsRecursive(bodyParamsSchemaActual, formFragment, 'formBodyParams', bodyParamsSchemaActual.required || []);
             srvSpecificForm.appendChild(formFragment);
         }
     }
 
     function buildFormFieldsRecursive(schema, parentElement, parentDataPath, parentSchemaRequired = []) {
+        // ... (Keep code from previous full script)
         if (!schema) return;
-
-        // Handle non-object schemas directly (e.g. bodyParameters is a string or number directly)
         if (schema.type && schema.type !== 'object' && schema.type !== 'array') {
-            const fieldName = parentDataPath.split('.').pop(); // Get the last part as field name
+            const fieldName = parentDataPath.split('.').pop(); 
             const inputElement = createFormFieldElement(fieldName, schema, parentDataPath, parentSchemaRequired.includes(fieldName));
             if (inputElement) parentElement.appendChild(inputElement);
             return;
         }
-        
         if (!schema.properties && schema.type === 'object' && !schema.additionalProperties) {
-            // Empty object {} - render nothing specific or a placeholder
-            // const p = document.createElement('p');
-            // p.textContent = `(Empty object for ${parentDataPath.split('.').pop()})`;
-            // parentElement.appendChild(p);
             return;
         }
         if (!schema.properties) return;
-
 
         const currentSchemaRequired = schema.required || [];
 
@@ -400,9 +499,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  fieldContainer.classList.add('object-field');
             }
 
-
             const label = document.createElement('label');
-            label.htmlFor = currentDataPath; // IDs should be unique
+            label.htmlFor = currentDataPath.replace(/[.\[\]]/g, '_'); 
             label.textContent = propertySchema.title || propertySchema.description || key;
             if (isRequired) {
                 label.textContent += ' *';
@@ -413,7 +511,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fieldset = document.createElement('fieldset');
                 const legend = document.createElement('legend');
                 legend.textContent = propertySchema.title || key;
-                // if (isRequired && Object.keys(propertySchema.properties).length > 0) legend.textContent += ' *'; // Indicate complex object is required
                 fieldset.appendChild(legend);
                 buildFormFieldsRecursive(propertySchema, fieldset, currentDataPath, propertySchema.required || []);
                 fieldContainer.appendChild(fieldset);
@@ -421,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const arrayContainer = document.createElement('div');
                 arrayContainer.classList.add('array-field-container');
                 arrayContainer.dataset.dataPath = currentDataPath;
-                arrayContainer.dataset.itemSchemaRef = propertySchema.items?.$ref; // Store ref if items are complex
+                arrayContainer.dataset.itemSchemaRef = propertySchema.items?.$ref; 
 
                 const itemSchema = propertySchema.items?.$ref ? getSchema(propertySchema.items.$ref) : propertySchema.items;
 
@@ -431,12 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 addButton.classList.add('add-array-item-btn');
                 addButton.addEventListener('click', () => addArrayItem(arrayContainer, itemSchema, currentDataPath));
                 
-                fieldContainer.appendChild(arrayContainer); // Where items will be rendered
+                fieldContainer.appendChild(arrayContainer); 
                 fieldContainer.appendChild(addButton);
-
-                // Initialize data structure for array
                 setDataValueByPath(currentState, currentDataPath, []);
-
 
             } else {
                 const inputElement = createFormFieldElement(key, propertySchema, currentDataPath, isRequired);
@@ -449,78 +543,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function addArrayItem(containerElement, itemSchema, basePath) {
+        // ... (Keep code from previous full script, with //TODO for removal)
         const arrayData = getDataValueByPath(currentState, basePath) || [];
         const itemIndex = arrayData.length;
         const itemDataPath = `${basePath}[${itemIndex}]`;
-
+    
         const itemDiv = document.createElement('div');
         itemDiv.classList.add('array-item');
+        itemDiv.dataset.itemIndex = itemIndex; 
         itemDiv.style.border = "1px dashed #aaa";
         itemDiv.style.padding = "10px";
         itemDiv.style.marginBottom = "10px";
-
-
+    
         const itemLegend = document.createElement('h4');
-        itemLegend.textContent = `${basePath.split('.').pop()} Item ${itemIndex + 1}`;
+        const itemTitle = itemSchema.title || basePath.split('.').pop() || 'Item';
+        itemLegend.textContent = `${itemTitle} ${itemIndex + 1}`;
         itemDiv.appendChild(itemLegend);
-
-
+    
+        let newItemData;
+        if (itemSchema.type === "object") {
+            newItemData = {};
+        } else if (itemSchema.type === 'boolean') {
+            newItemData = false;
+        } else if (itemSchema.type === 'number' || itemSchema.type === 'integer') {
+            newItemData = null;
+        } else {
+            newItemData = '';
+        }
+        arrayData.push(newItemData); 
+    
         if (itemSchema.type === "object" && itemSchema.properties) {
-            // For object items, create a default empty object in the data
-            setDataValueByPath(currentState, itemDataPath, {});
             buildFormFieldsRecursive(itemSchema, itemDiv, itemDataPath, itemSchema.required || []);
-        } else { // Simple type array item (string, number, etc.)
-             // For simple items, initialize with a default value or let input handle it
-            setDataValueByPath(currentState, itemDataPath, itemSchema.type === 'boolean' ? false : (itemSchema.type === 'number' || itemSchema.type === 'integer' ? null : ''));
-            const inputElement = createFormFieldElement(`item_${itemIndex}`, itemSchema, itemDataPath, false); // isRequired for array item itself is complex
+        } else {
+            const inputElement = createFormFieldElement(`item_${itemIndex}`, itemSchema, itemDataPath, false);
             if (inputElement) itemDiv.appendChild(inputElement);
         }
-        
+    
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
         removeButton.textContent = 'Remove Item';
         removeButton.classList.add('remove-array-item-btn');
         removeButton.addEventListener('click', () => {
-            containerElement.removeChild(itemDiv);
-            // Remove from data model - more complex, need to shift indices or use nulls
             const currentArray = getDataValueByPath(currentState, basePath);
-            if (currentArray) {
-                currentArray.splice(itemIndex, 1); // This might re-index, need careful data binding update if indices are used in paths elsewhere
-                // Re-render or re-bind array items might be needed if indices are critical for data paths of other elements
-                 console.log("Updated array data:", basePath, getDataValueByPath(currentState, basePath));
+            const indexToRemove = parseInt(itemDiv.dataset.itemIndex, 10);
+            
+            if (currentArray && Array.isArray(currentArray) && indexToRemove < currentArray.length) {
+                currentArray.splice(indexToRemove, 1); // TODO: This re-indexes. For robust UI, re-render all items in containerElement.
             }
-
+            containerElement.removeChild(itemDiv); 
+            console.log("Updated array after removal:", basePath, getDataValueByPath(currentState, basePath));
         });
         itemDiv.appendChild(removeButton);
         containerElement.appendChild(itemDiv);
-
-        // Ensure the array exists in formBodyParams
-        let pathParts = basePath.split('.').slice(1);
-        let currentObject = currentState.formBodyParams;
-        pathParts.forEach((part, index) => {
-            if (index === pathParts.length - 1) {
-                if (!currentObject[part] || !Array.isArray(currentObject[part])) {
-                    currentObject[part] = [];
-                }
-            } else {
-                if (!currentObject[part] || typeof currentObject[part] !== 'object') {
-                    currentObject[part] = {};
-                }
-                currentObject = currentObject[part];
-            }
-        });
-        // Add new item placeholder to data
-        const actualArray = getDataValueByPath(currentState, basePath);
-        if (actualArray && itemSchema.type === "object") actualArray.push({});
-        else if (actualArray) actualArray.push(null); // Placeholder for simple types
     }
 
 
     function createFormFieldElement(key, propertySchema, dataPath, isRequired) {
+        // ... (Keep code from previous full script)
         let inputElement;
-        const id = dataPath.replace(/[.\[\]]/g, '_'); // Make ID HTML-safe
+        const id = dataPath.replace(/[.\[\]]/g, '_'); 
 
-        const dataPathForListener = dataPath; // Capture for listener
+        const dataPathForListener = dataPath; 
 
         if (propertySchema.enum) {
             inputElement = document.createElement('select');
@@ -568,44 +651,80 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (inputElement) {
             inputElement.id = id;
-            inputElement.name = key; // Or a more unique name if needed
+            inputElement.name = key; 
             inputElement.dataset.dataPath = dataPathForListener;
             if (isRequired) {
                 inputElement.required = true;
             }
-            if (propertySchema.description && inputElement.type !== 'checkbox') { // Tooltip for non-checkboxes
+            if (propertySchema.description && inputElement.type !== 'checkbox') { 
                 inputElement.title = propertySchema.description;
+            }
+
+            // Restore value from currentState.formBodyParams if it exists
+            const existingValue = getDataValueByPath(currentState, dataPathForListener);
+            if (existingValue !== undefined) {
+                if (inputElement.type === 'checkbox') {
+                    inputElement.checked = existingValue;
+                } else {
+                    inputElement.value = existingValue;
+                }
             }
 
 
             inputElement.addEventListener('input', (e) => handleInputChange(e.target, dataPathForListener));
-            inputElement.addEventListener('change', (e) => handleInputChange(e.target, dataPathForListener)); // For selects and checkboxes
+            inputElement.addEventListener('change', (e) => handleInputChange(e.target, dataPathForListener)); 
         }
         return inputElement;
     }
 
     function handleInputChange(targetElement, dataPath) {
+        // ... (Keep code from previous full script)
         let value = targetElement.type === 'checkbox' ? targetElement.checked : targetElement.value;
         
-        // Type coercion for numbers
-        if ((targetElement.type === 'number' || targetElement.inputMode === 'numeric') && value !== '') {
-            value = Number(value);
-            if (isNaN(value)) { // If conversion results in NaN, maybe keep string or handle error
-                value = targetElement.value; 
+        const propertySchemaPath = dataPath.replace(/^formBodyParams\./, '').split(/[.\[\]]+/).filter(Boolean);
+        let schemaForField = currentState.selectedSrvSchema?.properties?.bodyParameters;
+        if (schemaForField?.$ref) schemaForField = getSchema(schemaForField.$ref);
+
+        for (let i = 0; i < propertySchemaPath.length; i++) {
+            const part = propertySchemaPath[i];
+            if (!schemaForField) break;
+            if (schemaForField.properties && schemaForField.properties[part]) {
+                schemaForField = schemaForField.properties[part];
+            } else if (schemaForField.type === 'array' && schemaForField.items && !isNaN(parseInt(part))) {
+                 schemaForField = schemaForField.items.$ref ? getSchema(schemaForField.items.$ref) : schemaForField.items;
+                 if (i + 1 < propertySchemaPath.length && isNaN(parseInt(propertySchemaPath[i+1]))) {
+                    // Property of an item
+                 }
+            } else {
+                schemaForField = null; 
+                break;
             }
         }
         
-        // Handle empty string for optional non-checkbox fields by deleting the key
+        if (schemaForField && (schemaForField.type === 'integer' || schemaForField.type === 'number') && value !== '') {
+            const numValue = Number(value);
+            if (isNaN(numValue)) {
+                value = targetElement.value; 
+                 console.warn(`Invalid number input for ${dataPath}: ${targetElement.value}`);
+                 targetElement.classList.add('input-error'); 
+            } else {
+                 value = numValue; // Use the coerced number
+                 targetElement.classList.remove('input-error');
+            }
+        } else {
+            targetElement.classList.remove('input-error');
+        }
+        
         if (value === "" && targetElement.type !== 'checkbox' && !targetElement.required) {
-            setDataValueByPath(currentState, dataPath, undefined); // 'undefined' will lead to key deletion by pruneEmptyObjects
+            setDataValueByPath(currentState, dataPath, undefined); 
         } else {
             setDataValueByPath(currentState, dataPath, value);
         }
-        // console.log("Updated formBodyParams:", JSON.stringify(currentState.formBodyParams, null, 2));
     }
 
     function setDataValueByPath(obj, path, value) {
-        const parts = path.split(/[.\[\]]+/).filter(Boolean); // 'formBodyParams.arr[0].name' -> ['formBodyParams', 'arr', '0', 'name']
+        // ... (Keep existing - it's complex but functional for object paths)
+        const parts = path.split(/[.\[\]]+/).filter(Boolean);
         let current = obj;
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
@@ -618,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalKey = parts[parts.length - 1];
         if (value === undefined) {
             if (Array.isArray(current) && !isNaN(parseInt(finalKey))) {
-                current.splice(parseInt(finalKey), 1); // Or set to null/undefined if preferred
+                current[parseInt(finalKey)] = undefined; 
             } else {
                 delete current[finalKey];
             }
@@ -628,6 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getDataValueByPath(obj, path) {
+        // ... (Keep existing)
         const parts = path.split(/[.\[\]]+/).filter(Boolean);
         let current = obj;
         for (const part of parts) {
@@ -644,68 +764,55 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupEventListeners() {
         environmentSelect.addEventListener('change', (e) => {
             currentState.selectedEnvironment = e.target.value ? JSON.parse(e.target.value) : null;
-            resetDownstreamUI('environment'); // Reset from role downwards
+            resetDownstreamUI('environment');
             if (currentState.selectedEnvironment) {
                 roleSelect.disabled = false;
-                 populateDuisVersions(); // Populate DUIS if role is already selected
-            } else {
-                roleSelect.disabled = true;
+                if (currentState.selectedRole) populateDuisVersions(); // Re-filter DUIS if role was already set
             }
         });
 
         roleSelect.addEventListener('change', (e) => {
             currentState.selectedRole = e.target.value ? JSON.parse(e.target.value) : null;
-            resetDownstreamUI('role'); // Reset from DUIS downwards
-            if (currentState.selectedRole) {
+            resetDownstreamUI('role');
+            if (currentState.selectedRole && currentState.selectedEnvironment) {
                 duisVersionSelect.disabled = false;
                 populateDuisVersions();
-            } else {
-                duisVersionSelect.disabled = true;
             }
         });
 
         duisVersionSelect.addEventListener('change', (e) => {
             currentState.selectedDuisVersion = e.target.value || null;
-            resetDownstreamUI('duis'); // Reset from originator display downwards
+            resetDownstreamUI('duis');
             if (currentState.selectedDuisVersion) {
-                srvSelect.disabled = false; // Enable SRV select for populating
-                displayOriginatorName(); 
-            } else {
-                 srvSelect.disabled = true;
+                displayOriginatorNameAndPopulateSrvs();
             }
         });
 
-        srvSelect.addEventListener('change', (e) => {
-            const srvCode = e.target.value;
-            currentState.selectedSrvData = config.srvMatrix.find(srv => srv.srv_code === srvCode) || null;
-            currentState.selectedSrvSchema = null;
-            resetDownstreamUI('srv'); // Reset from CV downwards
-            if (currentState.selectedSrvData) {
-                cvSelect.disabled = false;
-                populateCvSelect(); 
-            } else {
-                cvSelect.disabled = true;
-            }
-        });
-        
-        cvSelect.addEventListener('change', (e) => {
-            currentState.selectedCv = e.target.value || null;
-            resetDownstreamUI('cv'); // Reset target and generate button
-            if(currentState.selectedCv) {
-                 handleTargetField(); // This will enable generate button if target is resolved
-            } else {
-                 generateJsonButton.disabled = true;
-            }
-        });
+        srvSelect.addEventListener('change', handleSrvSelection);
+        cvSelect.addEventListener('change', handleCvSelection);
 
         targetGuidInput.addEventListener('input', (e) => {
-            if (currentState.selectedCv && String(currentState.selectedCv) !== "8") { // Ensure selectedCv is string for comparison
+            if (currentState.selectedCv && currentState.selectedCv !== 8) {
                 currentState.targetValue = e.target.value;
+                generateJsonButton.disabled = !e.target.value.trim(); 
             }
         });
         
         executionDateTimeInput.addEventListener('input', (e) => {
             currentState.futureDateTimeValue = e.target.value;
+            // If executionDateTime is part of formBodyParams schema, update it there too
+            // This specific input is for the top-level or primary future date concept
+            if (currentState.selectedSrvSchema?.properties?.bodyParameters?.properties?.executionDateTime ||
+                currentState.selectedSrvSchema?.properties?.executionDateTime) {
+                // Logic to decide where this specific input's value should go
+                // If defined in bodyParameters schema:
+                const pathInBody = 'formBodyParams.executionDateTime'; // Example path
+                if (getDataValueByPath(currentState, pathInBody) !== undefined || 
+                    (currentState.selectedSrvSchema?.properties?.bodyParameters?.$ref && 
+                     getSchema(currentState.selectedSrvSchema.properties.bodyParameters.$ref)?.properties?.executionDateTime)) {
+                     setDataValueByPath(currentState, pathInBody, e.target.value);
+                }
+            }
         });
 
         generateJsonButton.addEventListener('click', generateOutputs);
@@ -715,16 +822,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Output Generation ---
     function generateOutputs() {
-        if (!currentState.selectedEnvironment || !currentState.selectedRole || !currentState.selectedDuisVersion || !currentState.determinedOriginatorName || !currentState.selectedSrvData || !currentState.selectedCv || !currentState.targetValue) {
-            alert("Please complete all selections (Environment, Role, DUIS, SRV, CV, and Target if applicable).");
+        // Basic validation
+        if (!currentState.selectedEnvironment || !currentState.selectedRole || !currentState.selectedDuisVersion || 
+            !currentState.determinedOriginatorName || !currentState.selectedSrvData || currentState.selectedCv === null) { // Check for null CV
+            alert("Please complete all top-level selections (Environment, Role, DUIS, SRV, CV).");
             return;
         }
-         if (String(currentState.selectedCv) !== "8" && (!currentState.targetValue || currentState.targetValue.trim() === '')) {
+        if (currentState.selectedCv !== 8 && (!currentState.targetValue || currentState.targetValue.trim() === '')) {
             alert("Target GUID is required for the selected Command Variant.");
             targetGuidInput.focus();
             return;
         }
-
+        if (!currentState.targetValue) {
+            alert("Target is not set. Please ensure CV selection is complete or GUID is entered.");
+            return;
+        }
 
         let srValue = currentState.selectedSrvData.srv_code;
         const srvParts = currentState.selectedSrvData.srv_code.split('.');
@@ -739,28 +851,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 target: currentState.targetValue,
                 sr: srValue,
                 srv: currentState.selectedSrvData.srv_code,
-                cv: parseInt(currentState.selectedCv, 10)
+                cv: currentState.selectedCv // Already an integer from handleCvSelection
             }
-            // bodyParameters will be added or not based on form data and schema
         };
         
-        const cleanedFormBodyParams = pruneEmptyObjects(JSON.parse(JSON.stringify(currentState.formBodyParams)));
-
-        if (cleanedFormBodyParams && Object.keys(cleanedFormBodyParams).length > 0) {
-            jsonData.bodyParameters = cleanedFormBodyParams;
-        } else if (currentState.selectedSrvSchema?.properties?.bodyParameters) {
-            // If bodyParameters was defined in schema but is empty, represent it as an empty object
-            // unless the schema for bodyParameters itself was truly an empty object definition
-            const bodyParamsPropSchema = currentState.selectedSrvSchema.properties.bodyParameters;
-            let bodyActualSchema = bodyParamsPropSchema.$ref ? getSchema(bodyParamsPropSchema.$ref) : bodyParamsPropSchema;
-            if (!(bodyActualSchema && (bodyActualSchema.type !== 'object' || Object.keys(bodyActualSchema.properties || {}).length === 0 && !bodyActualSchema.additionalProperties))) {
-                 jsonData.bodyParameters = {};
-            }
-            // if bodyParameters was an empty schema object and result is empty, it will be omitted, which is fine.
-        }
-
-
-        if (currentState.selectedSrvData.supports_future_date && currentState.futureDateTimeValue && currentState.futureDateTimeValue.trim() !== "") {
+        // Handle executionDateTime
+        // It's included if:
+        // 1. SRV Matrix says it's supported
+        // 2. User has entered a value
+        // 3. Value is a future date
+        // Placement depends on the OpenAPI schema of the Srv_X_Y_Z_Dto
+        if (currentState.selectedSrvData.supports_future_date && 
+            currentState.futureDateTimeValue && 
+            currentState.futureDateTimeValue.trim() !== "") {
+            
             const executionDate = new Date(currentState.futureDateTimeValue);
             const now = new Date();
             if (executionDate <= now) {
@@ -768,23 +872,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 executionDateTimeInput.focus(); 
                 return; 
             }
-            
-            let dateTimePlacedInBody = false;
-            // Check if executionDateTime should be in bodyParameters based on its schema
-            if (jsonData.bodyParameters && jsonData.bodyParameters.hasOwnProperty('executionDateTime')) {
-                // It was already included via formBodyParams because it's part of bodyParameters schema
-                dateTimePlacedInBody = true;
-            }
+            const isoDateTime = executionDate.toISOString();
 
-            // If not placed in body, and schema for SRV DTO has it top-level, place it there
-            if (!dateTimePlacedInBody && currentState.selectedSrvSchema?.properties?.executionDateTime) {
-                 jsonData.executionDateTime = currentState.futureDateTimeValue;
-            } else if (!dateTimePlacedInBody && !currentState.selectedSrvSchema?.properties?.executionDateTime && currentState.selectedSrvData.supports_future_date) {
-                // Fallback: if SRV supports it, and it's not in body and not top-level in DTO,
-                // we might assume top-level if this scenario is valid.
-                // For now, prefer explicit schema definition. If schema does not define it, it shouldn't be there.
-                 console.warn(`executionDateTime supported by SRV Matrix but not found in SRV DTO schema (${currentState.selectedSrvData.srv_code}) at top-level or explicitly in bodyParameters schema. Omitting.`);
+            // Check if the main SRV DTO schema (e.g., Srv_1_6_Dto) has 'executionDateTime' at the top level.
+            if (currentState.selectedSrvSchema?.properties?.executionDateTime) {
+                jsonData.executionDateTime = isoDateTime;
+            } 
+            // If not top-level, it's assumed to be handled within formBodyParams if defined in bodyParameters schema
+            // (handleInputChange for a field named executionDateTime would have put it there).
+            // No explicit addition here for bodyParameters.executionDateTime if futureDateTimeValue is for top-level.
+        }
+        
+        // Prune and add bodyParameters from the dynamic form
+        // JSON.parse(JSON.stringify()) for a deep clone before pruning
+        const clonedFormBodyParams = JSON.parse(JSON.stringify(currentState.formBodyParams));
+        const cleanedFormBodyParams = pruneEmptyObjects(clonedFormBodyParams);
+
+        if (currentState.selectedSrvSchema?.properties?.bodyParameters) {
+            if (cleanedFormBodyParams && Object.keys(cleanedFormBodyParams).length > 0) {
+                jsonData.bodyParameters = cleanedFormBodyParams;
+            } else {
+                // If bodyParameters is an expected property, include it as {} even if empty,
+                // unless its schema is truly an empty object definition itself.
+                const bodyParamsPropSchema = currentState.selectedSrvSchema.properties.bodyParameters;
+                const actualBodySchema = bodyParamsPropSchema.$ref ? getSchema(bodyParamsPropSchema.$ref) : bodyParamsPropSchema;
+                if (actualBodySchema && (actualBodySchema.type !== 'object' || Object.keys(actualBodySchema.properties || {}).length > 0 || actualBodySchema.additionalProperties === true)) {
+                    jsonData.bodyParameters = {};
+                }
+                // If actualBodySchema is just `type: "object"` with no properties and additionalProperties: false, then an empty jsonData.bodyParameters is correct if cleaned is undefined.
             }
+        } else if (cleanedFormBodyParams && Object.keys(cleanedFormBodyParams).length > 0) {
+            console.warn(`Collected bodyParameters for ${currentState.selectedSrvData.srv_code}, but 'bodyParameters' property not explicitly defined in its main DTO schema. Including them.`);
+            jsonData.bodyParameters = cleanedFormBodyParams;
         }
         
         jsonOutput.textContent = JSON.stringify(jsonData, null, 2);
@@ -798,12 +917,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function pruneEmptyObjects(obj) {
+        // ... (Keep existing - it's mostly good)
         if (typeof obj !== 'object' || obj === null) {
-            return (obj === "" || obj === null) ? undefined : obj; // Convert empty strings/nulls from simple inputs to undefined
+            return (obj === "" || obj === null) ? undefined : obj; 
         }
         if (Array.isArray(obj)) {
             const newArray = obj.map(pruneEmptyObjects).filter(item => item !== undefined);
-            return newArray.length > 0 ? newArray : undefined;
+            return newArray.length > 0 ? newArray : undefined; 
         }
 
         const newObj = {};
